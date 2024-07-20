@@ -6,7 +6,7 @@ Overall structure of the TC-DiffRecon:
 
 Dynamic Clipping Strategy Process:
 
-![Strategy](img/Dynamic clipping.png)
+![Strategy](img/Dynamic_clipping.png)
 
 Model Generate Detailed Effect Comparison:
 
