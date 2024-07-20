@@ -1,6 +1,6 @@
-# TC-DiffRecon
+# TC-KANRecon
 
-Overall structure of the TC-DiffRecon:
+Overall structure of the TC-KANRecon:
 
 ![model](img/model.png)
 
