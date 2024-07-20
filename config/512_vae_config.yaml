@@ -1,0 +1,45 @@
+# base configuration
+train_bc: 4
+eval_bc: 8
+num_epochs: 200
+data_path: ['/mntcephfs/lab_data/wangcm/fzj/advanced_VT/dataset/data_sloeaffa', 
+            '/mntcephfs/lab_data/wangcm/fzj/advanced_VT/dataset/data_slolaffa', 
+            '/mntcephfs/lab_data/wangcm/fzj/advanced_VT/dataset/early_koufu_ea', 
+            '/mntcephfs/lab_data/wangcm/fzj/advanced_VT/dataset/early_koufu_la']
+eval_path: '/mntcephfs/lab_data/wangcm/fzj/adv-Diff/dataset/308_12_26/grey/train'
+mode: 'double'
+val_length: 2000
+
+# train process configuration
+val_inter: 4
+save_inter: 5
+
+# model configuration
+in_channels: 3
+out_channels: 3
+block_out_channels: [
+    128,
+    256,
+    512
+  ]
+down_block_types: [
+    "DownEncoderBlock2D",
+    "DownEncoderBlock2D",
+    "DownEncoderBlock2D",
+  ]
+up_block_types: [
+    "UpDecoderBlock2D",
+    "UpDecoderBlock2D",
+    "UpDecoderBlock2D",
+  ]
+latent_channels: 4
+layers_per_block: 2
+sample_size: 512
+resume_path: ''
+
+# accelerate config
+split_batches: False
+mixed_precision: 'fp16'
+log_with: 'tensorboard'
+project_dir: 'weights/exp_2_13'
+gradient_accumulation_steps: 1

@@ -1,0 +1,9 @@
+pytorch-fid==0.30.0
+torch==2.3.0
+torchvision==0.18.0
+tqdm
+timm==0.9.16
+scikit-image==0.23.1
+opencv-python==4.10.0.84
+accelerate==0.32.1
+numpy==1.26.4
