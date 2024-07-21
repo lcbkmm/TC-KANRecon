@@ -26,23 +26,23 @@ The two datasets we used are both public datasets. For firstMRI, you can find it
 
 When you have your data set ready, you need to change your data set path in the configuration file below:
 
-for vae:
+- for vae:
 ```
 python config/vae/config_monaivae_zheer.py
 ```
-for model:
+- for model:
 ```
 python config/diffusion/config_zheer_controlnet.py
 ```
 
 ## 3. Training
-for vae:
+- for vae:
 
 ```
 python my_vqvae/train_vae.py
 
 ```
-for model:
+- for model:
 
 ```
 python stable_diffusion/train_sd.py
