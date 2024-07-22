@@ -68,7 +68,7 @@ class Double_dataset(data.Dataset):
                 transforms.Resize((256, 256)), 
                 # transforms.RandomVerticalFlip(),
                 # transforms.RandomHorizontalFlip(), 
-                transforms.Normalize(mean=0.5, std=0.5)
+                # transforms.Normalize(mean=0.5, std=0.5)
             ])
         else: 
             basic_trans_list.append(transforms.Resize(img_size, antialias=True))
