@@ -3,11 +3,12 @@ from dataclasses import dataclass
 
 @dataclass
 class Config():
-    train_bc = 3
-    eval_bc = 3
-    num_epochs = 2000
-    data_path = '/home/wangchangmiao/yuxiao/MRIRecon/mridata/firstMRI/trainImg'
-    eval_path = '/home/wangchangmiao/yuxiao/MRIRecon/mridata/firstMRI/trainImg'
+    train_bc = 8
+    eval_bc = 8
+    num_epochs = 120
+    data_path = ''
+    eval_path = ''
+    
     single_channel = False
     mode = 'double'
     val_length = 2000
@@ -41,8 +42,16 @@ class Config():
     # mask
     mask_path = 'mask/mask_4.pt'
     
+    # scheduler
+    beta_start = 0.0008
+    beta_end = 0.02
+    beta_schedule = "squaredcos_cap_v2"
+    clip_sample = True
+    initial_clip_sample_range = 1.5
+    clip_rate = 0.0021
+    
     # accelerate config
     split_batches = False
     mixed_precision = 'fp16'
     log_with = 'tensorboard'
-    project_dir = 'weights/model/sd/exp_6_24'
+    project_dir = ''
