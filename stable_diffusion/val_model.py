@@ -71,7 +71,15 @@ def main():
     mc_model = mc_model.to(device)
 
     
-    scheduler = DDPMScheduler(num_train_timesteps=1000)
+    # scheduler = DDPMScheduler(num_train_timesteps=1000)
+    # 动态裁剪策略
+    scheduler = DDPMScheduler(num_train_timesteps=1000, 
+                                    beta_start=Config.beta_start,
+                                    beta_end=Config.beta_end,
+                                    beta_schedule=Config.beta_schedule,
+                                    clip_sample=Config.clip_sample,
+                                    clip_sample_range=Config.initial_clip_sample_range,
+                                    )
     save_interval = Config.save_inter
 
     if len(Config.log_with):
@@ -91,15 +99,23 @@ def main():
             noise = torch.randn(latent_shape).to(device)
             progress_bar_sampling = tqdm(scheduler.timesteps, total=len(scheduler.timesteps), ncols=110, position=0, leave=True)
             with torch.no_grad():
-                for t in progress_bar_sampling:
+                for j, t in progress_bar_sampling:
+                    t_tensor = torch.tensor([t], dtype=torch.long).to(device)
                     hs= mc_model(
-                    x=noise, t=torch.Tensor((t,)).to(device).long(), controlnet_cond=mri_mask
+                    x=noise, t=t_tensor, controlnet_cond=mri_mask
                     )
                     noise_pred = model(
                     noise,
                     t=torch.Tensor((t,)).to(device),
                     additional_residuals=hs
                     )
+                    scheduler = DDPMScheduler(num_train_timesteps=1000, 
+                                beta_start=Config.beta_start,
+                                beta_end=Config.beta_end,
+                                beta_schedule=Config.beta_schedule,
+                                clip_sample=Config.clip_sample,
+                                clip_sample_range=Config.initial_clip_sample_range + Config.clip_rate * j,
+                                )
                     noise, _ = scheduler.step(model_output=noise_pred, timestep=t, sample=noise)
 
             with torch.no_grad():
