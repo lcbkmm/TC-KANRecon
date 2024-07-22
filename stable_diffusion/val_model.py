@@ -13,7 +13,7 @@ from generative.inferers import DiffusionInferer
 from generative.networks.schedulers import DDPMScheduler
 
 from utils.common import get_parameters, save_config_to_yaml, one_to_three
-from config.diffusion.config_zheer_controlnet import Config
+from config.diffusion.config_controlnet import Config
 from os.path import join as j
 from accelerate import Accelerator
 from torchvision.utils import make_grid, save_image
