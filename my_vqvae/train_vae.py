@@ -129,25 +129,18 @@ def main():
             total_mse_loss = 0.0
             with torch.no_grad():
                 for batch_idx, batch in enumerate(val_dataloader):
-                    first_ffa = batch[0].to(device).float()
-                    # Calculate reconstruction for the first and second part of the batch
-                    val_recon_1, _, _ = vae(first_ffa)
-                    # Compute the MSE loss for each part of the batch
-                    mse_loss_1 = F.mse_loss(val_recon_1, first_ffa)
-                    # Accumulate the total loss
-                    total_mse_loss += mse_loss_1  # Averaging loss for both parts
-                    # Optionally, you can save images here as well
-                    if batch_idx == 0:  # Example: Save only the first batch for illustration
+                    mri = batch[0].to(device).float()
+                    val_recon_1, _, _ = vae(mri)
+                    mse_loss_1 = F.mse_loss(val_recon_1, mri)
+                    total_mse_loss += mse_loss_1 
+                    if batch_idx == 0: 
                         save_path = j(Config.project_dir, 'image_save')
                         os.makedirs(save_path, exist_ok=True)
-                        val_recon = torch.cat([first_ffa, val_recon_1], dim=-1)
+                        val_recon = torch.cat([mri, val_recon_1], dim=-1)
                         val_recon = make_grid(val_recon, nrow=1).unsqueeze(0)
                         log_image = {"MRI": (val_recon + 1) / 2}
                         save_image(log_image["MRI"].clip(0, 1), j(save_path, f'epoch_{epoch + 1}_firstMRI.png'))
-                        # accelerator.trackers[0].log_images(log_image, epoch+1)
-                # Calculate the average MSE loss over the entire validation dataset
                 average_mse_loss = total_mse_loss / len(val_dataloader)
-                # Print or log the average MSE loss
                 print(f'Epoch {epoch + 1}, Average MSE Loss: {average_mse_loss.item()}')
                 del average_mse_loss, total_mse_loss, mse_loss_1
                 
@@ -160,8 +153,5 @@ def main():
             torch.save(vae.state_dict(), j(gen_path, 'vae.pth'))
             torch.save(discriminator.state_dict(), j(dis_path, 'dis.pth'))
             
-
-    
-
 if __name__ == '__main__':
     main()
