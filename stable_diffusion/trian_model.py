@@ -6,18 +6,16 @@ from utils.Condition_aug_dataloader import double_form_dataloader
 
 import torch
 from torch.nn import functional as F
-import argparse
 from generative.networks.nets import AutoencoderKL
 from generative.inferers import DiffusionInferer
-# from generative.networks.nets import DiffusionModelUNet, ControlNet
 from generative.networks.schedulers import DDPMScheduler
 
 from utils.common import get_parameters, save_config_to_yaml, one_to_three
-from config.diffusion.config_zheer_controlnet import Config
+from config.diffusion.config_controlnet import Config
 from os.path import join as j
 from accelerate import Accelerator
 from torchvision.utils import make_grid, save_image
-from unet.Model_UKAN_Hybrid import MF_UKAN
+from unet.MF_UKAN import MF_UKAN
 from unet.MC_model import MC_MODEL
 import os
 
@@ -73,7 +71,7 @@ def main():
     attn=[2], 
     num_res_blocks=2, 
     dropout=0.15).to(device)
-    if len(Config.sd_resume_path):
+    if len(Config.mc_model_path):
         mc_model.load_state_dict(torch.load(Config.mc_model_path), strict=False)
     mc_model = mc_model.to(device)
 
@@ -113,13 +111,13 @@ def main():
                 0, inferer.scheduler.num_train_timesteps, (latented_mri.shape[0],), device=latented_mri.device
             ).long()
             latented_mri_noised = scheduler.add_noise(latented_mri, latent_noise, timesteps)
-            hs = mc_model(
+            down_block_res_samples, _ = mc_model(
                 x=latented_mri_noised, t=timesteps, controlnet_cond=mri_mask
             )
             noise_pred = model(
                 x=latented_mri_noised,
                 t=timesteps,
-                additional_residuals=hs
+                down_block_additional_residuals=down_block_res_samples
             )
             loss = F.mse_loss(noise_pred.float(), latent_noise.float())
             loss.backward()
@@ -142,13 +140,14 @@ def main():
             progress_bar_sampling = tqdm(scheduler.timesteps, total=len(scheduler.timesteps), ncols=110, position=0, leave=True)
             with torch.no_grad():
                 for t in progress_bar_sampling:
-                    hs= mc_model(
-                    x=noise, t=torch.Tensor((t,)).to(device).long(), controlnet_cond=mri_mask
+                    t_tensor = torch.tensor([t], dtype=torch.long).to(device)
+                    down_block_res_samples, _ = mc_model(
+                    x=noise, t=t_tensor, controlnet_cond=mri_mask
                     )
                     noise_pred = model(
                     noise,
-                    t=torch.Tensor((t,)).to(device),
-                    additional_residuals=hs
+                    t=t_tensor,
+                    down_block_additional_residuals=down_block_res_samples
                     )
                     noise, _ = scheduler.step(model_output=noise_pred, timestep=t, sample=noise)
 
@@ -161,7 +160,7 @@ def main():
             log_image = {"MRI": image.clamp(0, 1)}
             save_path = j(Config.project_dir, 'image_save')
             os.makedirs(save_path, exist_ok=True)
-            save_image(log_image["MRI"], j(save_path, f'epoch_{epoch + 1}_firstMRI.png'))
+            save_image(log_image["MRI"], j(save_path, f'epoch_{epoch + 1}_MRI.png'))
 
             # accelerator.trackers[0].log_images(log_image, epoch+1)
 
