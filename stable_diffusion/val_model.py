@@ -6,18 +6,16 @@ from utils.Condition_aug_dataloader import double_form_dataloader
 
 import torch
 from torch.nn import functional as F
-import argparse
 from generative.networks.nets import AutoencoderKL
 from generative.inferers import DiffusionInferer
-# from generative.networks.nets import DiffusionModelUNet, ControlNet
-from generative.networks.schedulers import DDPMScheduler
+from diffusers import DDPMScheduler
 
 from utils.common import get_parameters, save_config_to_yaml, one_to_three
 from config.diffusion.config_controlnet import Config
 from os.path import join as j
 from accelerate import Accelerator
 from torchvision.utils import make_grid, save_image
-from unet.Model_UKAN_Hybrid import MF_UKAN
+from unet.MF_UKAN import MF_UKAN
 from unet.MC_model import MC_MODEL
 import os
 
@@ -80,7 +78,6 @@ def main():
                                     clip_sample=Config.clip_sample,
                                     clip_sample_range=Config.initial_clip_sample_range,
                                     )
-    save_interval = Config.save_inter
 
     if len(Config.log_with):
         accelerator.init_trackers('train_example')
@@ -88,53 +85,51 @@ def main():
     latent_shape = None
     # scaling_factor = 1 / torch.std(next(iter(train_dataloader))[0][1])
     scaling_factor = Config.scaling_factor
-    for epoch in range(Config.num_epochs):
-        model.train()
-        mc_model.train()
+    for step, batch in enumerate(val_dataloader):
+        model.eval()
+        mc_model.eval()
         progress_bar = tqdm(total=len(val_dataloader))
-        progress_bar.set_description(f"Epoch {epoch+1}")
-        for step, batch in enumerate(val_dataloader):
-            mri = batch[0].float().to(device)
-            mri_mask = batch[1].float().to(device)
-            noise = torch.randn(latent_shape).to(device)
-            progress_bar_sampling = tqdm(scheduler.timesteps, total=len(scheduler.timesteps), ncols=110, position=0, leave=True)
-            with torch.no_grad():
-                for j, t in progress_bar_sampling:
-                    t_tensor = torch.tensor([t], dtype=torch.long).to(device)
-                    hs= mc_model(
-                    x=noise, t=t_tensor, controlnet_cond=mri_mask
-                    )
-                    noise_pred = model(
-                    noise,
-                    t=torch.Tensor((t,)).to(device),
-                    additional_residuals=hs
-                    )
-                    scheduler = DDPMScheduler(num_train_timesteps=1000, 
-                                beta_start=Config.beta_start,
-                                beta_end=Config.beta_end,
-                                beta_schedule=Config.beta_schedule,
-                                clip_sample=Config.clip_sample,
-                                clip_sample_range=Config.initial_clip_sample_range + Config.clip_rate * j,
-                                )
-                    noise, _ = scheduler.step(model_output=noise_pred, timestep=t, sample=noise)
+        progress_bar.set_description(f"No. {step+1}")
+        mri = batch[0].float().to(device)
+        mri_mask = batch[1].float().to(device)
+        pt_name = batch[2][0].split('.')[0]
+        with torch.no_grad():
+            latent_mri = vae.encode_stage_2_inputs(mri)
+        latent_shape = list(latent_mri.shape);latent_shape[0] = Config.eval_bc
+        noise = torch.randn(latent_shape).to(device)
+        progress_bar_sampling = tqdm(scheduler.timesteps, total=len(scheduler.timesteps), ncols=110, position=0, leave=True)
+        with torch.no_grad():
+            for i, t in enumerate(progress_bar_sampling):
+                t_tensor = torch.tensor([t], dtype=torch.long).to(device)
+                down_block_res_samples, _ = mc_model(
+                x=noise, t=t_tensor, controlnet_cond=mri_mask
+                )
+                noise_pred = model(
+                noise,
+                t=t_tensor,
+                down_block_additional_residuals=down_block_res_samples
+                )
+                
+                scheduler = DDPMScheduler(num_train_timesteps=1000, 
+                            beta_start=Config.beta_start,
+                            beta_end=Config.beta_end,
+                            beta_schedule=Config.beta_schedule,
+                            clip_sample=Config.clip_sample,
+                            clip_sample_range=Config.initial_clip_sample_range + Config.clip_rate * i,
+                            )
+                noise = scheduler.step(model_output=noise_pred, timestep=t, sample=noise).prev_sample
+        with torch.no_grad():
+            image = vae.decode_stage_2_outputs(noise / scaling_factor)
+        
+        image, mri = one_to_three(image), one_to_three(mri),
+        image = torch.cat([mri, image], dim=-1)
+        image = (make_grid(image, nrow=1).unsqueeze(0)+1)/2
+        log_image = {"MRI": image.clamp(0, 1)}
+        save_path = j(Config.output_dir, 'image_save')
+        os.makedirs(save_path, exist_ok=True)
+        save_image(log_image["MRI"], j(save_path, f'{pt_name}.png'))
+        # accelerator.trackers[0].log_images(log_image, epoch+1)
 
-            with torch.no_grad():
-                image = vae.decode_stage_2_outputs(noise / scaling_factor)
-            image, mri = one_to_three(image), one_to_three(mri),
-            image = torch.cat([image, mri], dim=-1)
-            image = (make_grid(image, nrow=1).unsqueeze(0)+1)/2
-            log_image = {"MRI": image.clamp(0, 1)}
-            save_path = j(Config.project_dir, 'image_save')
-            os.makedirs(save_path, exist_ok=True)
-            save_image(log_image["MRI"], j(save_path, f'epoch_{epoch + 1}_MRI.png'))
-
-            # accelerator.trackers[0].log_images(log_image, epoch+1)
-
-        if (epoch + 1) % save_interval == 0 or epoch == cf['num_epochs'] - 1:
-            save_path = j(Config.project_dir, 'model_save')
-            os.makedirs(save_path, exist_ok=True)
-            torch.save(model.state_dict(), j(save_path, 'model.pth'))
-            torch.save(mc_model.state_dict(), j(save_path, 'mc_modle.pth'))
 
 if __name__ == '__main__':
     main()
