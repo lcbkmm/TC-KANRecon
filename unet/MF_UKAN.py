@@ -795,7 +795,7 @@ class MF_UKAN(nn.Module):
     def forward(self,
         x: torch.Tensor, 
         t: torch.Tensor,
-        additional_residuals: tuple[torch.Tensor] | None = None
+        down_block_additional_residuals: tuple[torch.Tensor] | None = None
         ):
         # Timestep embedding
         temb = self.time_embedding(t)
@@ -806,9 +806,9 @@ class MF_UKAN(nn.Module):
             h = layer(h, temb)
             hs.append(h)
     
-        # Additional residual conections 
-        if additional_residuals is not None:
-            hs = additional_residuals
+        # # Additional residual conections 
+        # if additional_residuals is not None:
+        #     hs = additional_residuals
             
         t3 = h
 
@@ -826,69 +826,79 @@ class MF_UKAN(nn.Module):
             h = blk(h, H, W, temb)
         h = self.norm4(h)
         h = h.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
+        
+        # Additional residual conections
+        if down_block_additional_residuals is not None:
+            h += down_block_additional_residuals.pop()
+
 
         ### Stage 4
         h = swish(F.interpolate(self.decoder1(h, temb), scale_factor=(2,2), mode ='bilinear'))
-
         h = torch.add(h, t4)
 
         _, _, H, W = h.shape
         h = h.flatten(2).transpose(1,2)
         for i, blk in enumerate(self.kan_dblock1):
             h = blk(h, H, W, temb)
-
+        # Additional residual conections
+        if down_block_additional_residuals is not None:
+            h += down_block_additional_residuals.pop().view(h.size())
             
         ### Stage 3
         h = self.dnorm3(h)
         h = h.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
         h = swish(F.interpolate(self.decoder2(h, temb),scale_factor=(2,2),mode ='bilinear'))
-
         h = torch.add(h,t3)
 
         # Upsampling
         for layer in self.upblocks:
             if isinstance(layer, ResBlock):
-                hs_ = hs.pop()
-                # --------------- FreeU code -----------------------
-                # Only operate on the first two stages
-                if h.shape[1] == 256:
-                    # hidden_mean = h.mean(1).unsqueeze(1)
-                    hidden_mean = h.clone().mean(1).unsqueeze(1)
-                    B = hidden_mean.shape[0]
-                    hidden_max, _ = torch.max(hidden_mean.view(B, -1), dim=-1, keepdim=True)
-                    hidden_min, _ = torch.min(hidden_mean.view(B, -1), dim=-1, keepdim=True)
-                    hidden_mean = (hidden_mean - hidden_min.unsqueeze(2).unsqueeze(3)) / (
-                            hidden_max - hidden_min).unsqueeze(2).unsqueeze(3)
-    
-                    h1=h.clone()
-                    h[:, :128] = h1[:, :128] * ((self.b1 - 1) * hidden_mean + 1)
-                    hs_ = Fourier_filter(hs_, threshold=1, scale=self.s1)
-                if h.shape[1] == 192:
-                    # hidden_mean = h.mean(1).unsqueeze(1)
-                    hidden_mean = h.clone().mean(1).unsqueeze(1)
-                    B = hidden_mean.shape[0]
-                    hidden_max, _ = torch.max(hidden_mean.view(B, -1), dim=-1, keepdim=True)
-                    hidden_min, _ = torch.min(hidden_mean.view(B, -1), dim=-1, keepdim=True)
-                    hidden_mean = (hidden_mean - hidden_min.unsqueeze(2).unsqueeze(3)) / (
-                            hidden_max - hidden_min).unsqueeze(2).unsqueeze(3)
-    
-                    h1 = h.clone()
-                    h[:, :96] = h1[:, :96] * ((self.b2 - 1) * hidden_mean + 1)
-                    hs_ = Fourier_filter(hs_, threshold=1, scale=self.s2)
-                if h.shape[1] == 128:
-                    # hidden_mean = h.mean(1).unsqueeze(1)
-                    hidden_mean = h.clone().mean(1).unsqueeze(1)
-                    B = hidden_mean.shape[0]
-                    hidden_max, _ = torch.max(hidden_mean.view(B, -1), dim=-1, keepdim=True)
-                    hidden_min, _ = torch.min(hidden_mean.view(B, -1), dim=-1, keepdim=True)
-                    hidden_mean = (hidden_mean - hidden_min.unsqueeze(2).unsqueeze(3)) / (
-                            hidden_max - hidden_min).unsqueeze(2).unsqueeze(3)
-    
-                    h1 = h.clone()
-                    h[:, :64] = h1[:, :64] * ((self.b3 - 1) * hidden_mean + 1)
-                    hs_ = Fourier_filter(hs_, threshold=1, scale=self.s3)
-                # ---------------------------------------------------------
-                h = torch.cat([h, hs_], dim=1)
+                if down_block_additional_residuals is not None:
+                    h_down = hs.pop()
+                    h_cat = h_down + down_block_additional_residuals.pop().view(h_down.size())
+                    h = torch.cat([h, h_cat], dim=1)
+                else:
+                    hs_ = hs.pop()
+                    # --------------- FreeU code -----------------------
+                    # Only operate on the first two stages
+                    if h.shape[1] == 256:
+                        # hidden_mean = h.mean(1).unsqueeze(1)
+                        hidden_mean = h.clone().mean(1).unsqueeze(1)
+                        B = hidden_mean.shape[0]
+                        hidden_max, _ = torch.max(hidden_mean.view(B, -1), dim=-1, keepdim=True)
+                        hidden_min, _ = torch.min(hidden_mean.view(B, -1), dim=-1, keepdim=True)
+                        hidden_mean = (hidden_mean - hidden_min.unsqueeze(2).unsqueeze(3)) / (
+                                hidden_max - hidden_min).unsqueeze(2).unsqueeze(3)
+        
+                        h1=h.clone()
+                        h[:, :128] = h1[:, :128] * ((self.b1 - 1) * hidden_mean + 1)
+                        hs_ = Fourier_filter(hs_, threshold=1, scale=self.s1)
+                    if h.shape[1] == 192:
+                        # hidden_mean = h.mean(1).unsqueeze(1)
+                        hidden_mean = h.clone().mean(1).unsqueeze(1)
+                        B = hidden_mean.shape[0]
+                        hidden_max, _ = torch.max(hidden_mean.view(B, -1), dim=-1, keepdim=True)
+                        hidden_min, _ = torch.min(hidden_mean.view(B, -1), dim=-1, keepdim=True)
+                        hidden_mean = (hidden_mean - hidden_min.unsqueeze(2).unsqueeze(3)) / (
+                                hidden_max - hidden_min).unsqueeze(2).unsqueeze(3)
+        
+                        h1 = h.clone()
+                        h[:, :96] = h1[:, :96] * ((self.b2 - 1) * hidden_mean + 1)
+                        hs_ = Fourier_filter(hs_, threshold=1, scale=self.s2)
+                    if h.shape[1] == 128:
+                        # hidden_mean = h.mean(1).unsqueeze(1)
+                        hidden_mean = h.clone().mean(1).unsqueeze(1)
+                        B = hidden_mean.shape[0]
+                        hidden_max, _ = torch.max(hidden_mean.view(B, -1), dim=-1, keepdim=True)
+                        hidden_min, _ = torch.min(hidden_mean.view(B, -1), dim=-1, keepdim=True)
+                        hidden_mean = (hidden_mean - hidden_min.unsqueeze(2).unsqueeze(3)) / (
+                                hidden_max - hidden_min).unsqueeze(2).unsqueeze(3)
+        
+                        h1 = h.clone()
+                        h[:, :64] = h1[:, :64] * ((self.b3 - 1) * hidden_mean + 1)
+                        hs_ = Fourier_filter(hs_, threshold=1, scale=self.s3)
+                    # ---------------------------------------------------------
+                    h = torch.cat([h, hs_], dim=1)
             h = layer(h, temb)
         h = self.tail(h)
         assert len(hs) == 0
