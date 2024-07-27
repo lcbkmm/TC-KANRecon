@@ -2,11 +2,11 @@
 
 Overall structure of the TC-KANRecon:
 
-![model](img/model.png)
+![model](img/Model.png)
 
 Dynamic Clipping Strategy Process:
 
-![Strategy](img/Dynamic_clipping.png)
+![Strategy](img/Strategy.png)
 
 Model Generate Detailed Effect Comparison(AF=4, fastMRI):
 
