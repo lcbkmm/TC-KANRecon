@@ -6,18 +6,16 @@ from utils.Condition_aug_dataloader import double_form_dataloader
 
 import torch
 from torch.nn import functional as F
-import argparse
 from generative.networks.nets import AutoencoderKL
 from generative.inferers import DiffusionInferer
-from generative.networks.nets import DiffusionModelUNet, ControlNet
 from generative.networks.schedulers import DDPMScheduler
 
 from utils.common import get_parameters, save_config_to_yaml
-from config.diffusion.config_zheer_controlnet import Config
+from config.diffusion.config_controlnet import Config
 from os.path import join as j
 from accelerate import Accelerator
 from torchvision.utils import make_grid, save_image
-from unet.Model_UKAN_Hybrid import MF_UKAN
+from unet.MF_UKAN import MF_UKAN
 import os
 
 def main():
@@ -29,14 +27,16 @@ def main():
                                         Config.sample_size, 
                                         Config.train_bc, 
                                         Config.mode, 
-                                        read_channel='gray')
+                                        read_channel='gray',
+                                        mask=mask)
     device = 'cuda'
     val_dataloader = double_form_dataloader(
         Config.eval_path, 
         Config.sample_size, 
         Config.eval_bc, 
         Config.mode, 
-        read_channel='gray')
+        read_channel='gray',
+        mask=mask)
     
     device = 'cuda'
     attention_levels = (False, ) * len(Config.up_and_down)
@@ -124,23 +124,24 @@ def main():
             progress_bar_sampling = tqdm(scheduler.timesteps, total=len(scheduler.timesteps), ncols=110, position=0, leave=True)
             with torch.no_grad():
                 for t in progress_bar_sampling:
+                    t_tensor = torch.tensor([t], dtype=torch.long).to(device)
                     noise_pred = model(
-                    noise,
-                    t=torch.Tensor((t,)).to(device),
+                    x=noise,
+                    t=t_tensor,
                     )
                     noise, _ = scheduler.step(model_output=noise_pred, timestep=t, sample=noise)
 
             
             with torch.no_grad():
                 image = vae.decode_stage_2_outputs(noise / scaling_factor)
-            image = torch.cat([image, mri], dim=-1)
+            image = torch.cat([mri, image], dim=-1)
             image = (make_grid(image, nrow=1).unsqueeze(0)+1)/2
             log_image = {"MRI": image.clip(0, 1)}
             save_path = j(Config.project_dir, 'image_save')
             os.makedirs(save_path, exist_ok=True)
             save_image(log_image["MRI"], j(save_path, f'epoch_{epoch + 1}_firstMRI.png'))
 
-            accelerator.trackers[0].log_images(log_image, epoch+1)
+            # accelerator.trackers[0].log_images(log_image, epoch+1)
 
         if (epoch + 1) % save_interval == 0 or epoch == cf['num_epochs'] - 1:
             save_path = j(Config.project_dir, 'model_save')
