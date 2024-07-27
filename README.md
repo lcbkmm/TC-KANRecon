@@ -8,9 +8,12 @@ Dynamic Clipping Strategy Process:
 
 ![Strategy](img/Dynamic_clipping.png)
 
-Model Generate Detailed Effect Comparison:
+Model Generate Detailed Effect Comparison(AF=4, fastMRI):
 
-![renderings](img/view.png)
+![renderings](img/fastMRIview.png)
+
+Model Generate Detailed Effect Comparison(AF=4, SKM-TEA):
+![renderings](img/SKM-TEAview.png)
 
 ## 1. Installation
 
