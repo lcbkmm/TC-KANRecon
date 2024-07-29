@@ -115,7 +115,7 @@ def main():
                             beta_end=Config.beta_end,
                             beta_schedule=Config.beta_schedule,
                             clip_sample=Config.clip_sample,
-                            clip_sample_range=Config.initial_clip_sample_range + Config.clip_rate * i,
+                            clip_sample_range=Config.initial_clip_sample_range - Config.clip_rate * i,
                             )
                 noise = scheduler.step(model_output=noise_pred, timestep=t, sample=noise).prev_sample
         with torch.no_grad():
