@@ -3,8 +3,8 @@ from dataclasses import dataclass
 
 @dataclass
 class Config():
-    train_bc = 8
-    eval_bc = 8
+    train_bc = 16
+    eval_bc = 16
     num_epochs = 120
     data_path = ''
     eval_path = ''
@@ -14,8 +14,8 @@ class Config():
     val_length = 2000
 
     # train process configuration
-    val_inter = 2
-    save_inter = 4
+    val_inter = 3
+    save_inter = 3
     sample_size = 256
 
     # aekl parameters
@@ -47,8 +47,8 @@ class Config():
     beta_end = 0.02
     beta_schedule = "squaredcos_cap_v2"
     clip_sample = True
-    initial_clip_sample_range = 1.5
-    clip_rate = 0.0021
+    initial_clip_sample_range = 1.8
+    clip_rate = 0.0014
     
     # accelerate config
     split_batches = False
