@@ -35,7 +35,7 @@ python config/vae/config_monaivae_zheer.py
 ```
 - for model:
 ```
-python config/diffusion/config_zheer_controlnet.py
+python config/diffusion/config_controlnet.py
 ```
 
 ## 3. Training
