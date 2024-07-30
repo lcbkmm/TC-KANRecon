@@ -59,5 +59,5 @@ python stable_diffusion/val_model.py
 
 ## 5. Citation
 ```
-Xiao Yu, Yifei Chen
+Xiao Yu, Yifei Chen, Fan Jia
 ```
