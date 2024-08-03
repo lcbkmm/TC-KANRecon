@@ -10,7 +10,7 @@ Dynamic Clipping Strategy Process:
 
 Model Generate Detailed Effect Comparison(AF=4):
 
-![renderings](img/view.png)
+![renderings](img/View.png)
 
 ## 1. Installation
 
