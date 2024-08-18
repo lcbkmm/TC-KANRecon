@@ -59,5 +59,10 @@ python stable_diffusion/val_model.py
 
 ## 5. Citation
 ```
-Xiao Yu, Yifei Chen
+@article{ge2024tc,
+  title={TC-KANRecon: High-Quality and Accelerated MRI Reconstruction via Adaptive KAN Mechanisms and Intelligent Feature Scaling},
+  author={Ge, Ruiquan and Yu, Xiao and Chen, Yifei and Jia, Fan and Zhu, Shenghao and Zhou, Guanyu and Huang, Yiyu and Zhang, Chenyan and Zeng, Dong and Wang, Changmiao and others},
+  journal={arXiv preprint arXiv:2408.05705},
+  year={2024}
+}
 ```
